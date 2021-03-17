@@ -2,16 +2,14 @@ import asyncio
 import json
 import os
 import queue
-import random
-import signal
-import string
+import base64
 import sys
 import threading
-import time
+
 
 from nats.aio.client import Client as NATS
 from nats.aio.errors import NatsError
-from iotedgedriverlinksdk import _driver_id, getLogger
+from iotedgeapplicationlinksdk import _app_name, getLogger, _product_sn, _device_sn, _appInfo
 
 _logger = getLogger()
 
@@ -20,11 +18,13 @@ def exit_handler(signum, frame):
     sys.exit(0)
 
 
+_msg_cb = None
+_msg_rrpc_cb = None
+
 _nat_publish_queue = queue.Queue()
-_nat_subscribe_queue = queue.Queue()
 
 
-class natsClientPub(object):
+class _natsClientPub(object):
     def __init__(self):
         self.url = os.environ.get(
             'IOTEDGE_NATS_ADDRESS') or 'tcp://127.0.0.1:4222'
@@ -56,7 +56,7 @@ class natsClientPub(object):
         # self.loop.run_forever()
 
 
-class natsClientSub(object):
+class _natsClientSub(object):
     def __init__(self):
         self.url = os.environ.get(
             'IOTEDGE_NATS_ADDRESS') or 'tcp://127.0.0.1:4222'
@@ -71,16 +71,22 @@ class natsClientSub(object):
             sys.exit(1)
 
         async def message_handler(msg):
-            global _nat_subscribe_queue
-            # subject = msg.subject
-            # reply = msg.reply
-            # data = msg.data.decode()
-            # sdk_print("Received a message on '{subject} {reply}': {data}".format(
-            #     subject=subject, reply=reply, data=data))
-            _nat_subscribe_queue.put(msg)
-        await self.nc.subscribe("edge.local."+_driver_id, queue=_driver_id, cb=message_handler, is_async=True)
-        await self.nc.subscribe("edge.local.broadcast", queue=_driver_id, cb=message_handler, is_async=True)
-        await self.nc.subscribe("edge.state.reply", queue=_driver_id, cb=message_handler, is_async=True)
+            global _msg_rrpc_cb
+            global _msg_cb
+            _logger.debug("recv message:{} " .format(str(msg)))
+            try:
+                js = json.loads(msg)
+                topic = js['topic']
+                data = base64.b64decode(js['payload'])
+                if isinstance(topic, str) and topic.startswith("/$system/") and topic.count('/rrpc/request/') > 0:
+                    topic = topic.replace("/request/", "/response/", 1)
+                    _msg_rrpc_cb(topic, data)
+                else:
+                    _msg_cb(topic, data)
+            except Exception as e:
+                _logger.error('handle msg error {}'.format(str(e)))
+
+        await self.nc.subscribe("edge.app."+_app_name, queue=_app_name, cb=message_handler, is_async=True)
         await self.nc.flush()
 
     def start(self):
@@ -88,27 +94,57 @@ class natsClientSub(object):
         self.loop.run_forever()
 
 
-def publish_nats_msg(msg):
+def register_callback(cb, rrpc_cb):
+    global _msg_cb
+    _msg_cb = cb
+
+    global _msg_rrpc_cb
+    _msg_rrpc_cb = rrpc_cb
+
+
+def get_gateway_product_sn():
+    return _product_sn
+
+
+def get_gateway_device_sn():
+    return _device_sn
+
+
+def get_application_name():
+    return _app_name
+
+
+def get_application_config():
+    return _appInfo
+
+
+def publish(topic: str, msg: bytes):
     global _nat_publish_queue
+    payload_encode = base64.b64encode(msg)
+    payload = {
+        'src': "app",
+        'topic': topic,
+        'payload': str(payload_encode, encoding='utf-8')
+    }
     data = {
-        'subject': 'edge.router.'+_driver_id,
-        'payload': msg
+        'subject': 'edge.router.'+_app_name,
+        'payload': payload
     }
     _nat_publish_queue.put(data)
 
 
-def start_pub():
-    natsClientPub().start()
+def _start_pub():
+    _natsClientPub().start()
 
 
-def start_sub():
-    natsClientSub().start()
+def _start_sub():
+    _natsClientSub().start()
 
 
-_t_nats_pub = threading.Thread(target=start_pub)
+_t_nats_pub = threading.Thread(target=_start_pub)
 _t_nats_pub.setDaemon(True)
 _t_nats_pub.start()
 
-_t_nats_sub = threading.Thread(target=start_sub)
+_t_nats_sub = threading.Thread(target=_start_sub)
 _t_nats_sub.setDaemon(True)
 _t_nats_sub.start()

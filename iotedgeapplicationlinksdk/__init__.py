@@ -10,11 +10,10 @@ import time
 from nats.aio.client import Client as NATS
 from nats.aio.errors import NatsError
 
-_driver_id = ''
-_driver_name = ''
-_deviceInfos = []
-_driverInfo = None
-_driver_name = ''
+_app_name = ''
+_appInfo = None
+_product_sn = ''
+_device_sn = ''
 
 # get Config
 _config_path = './etc/iotedge/config.json'
@@ -23,24 +22,18 @@ with open(_config_path, 'r') as load_f:
         load_dict = json.load(load_f)
         print(str(load_dict))
         # print('----config: {} -------'.format(load_dict))
+        _app_name = load_dict['appName']
+        _product_sn = load_dict['productSN']
+        _device_sn = load_dict['deviceSN']
 
-        _driver_id = load_dict['driverID']
+        if 'appInfo' in load_dict.keys():
+            _appInfo = load_dict['appInfo']
 
-        if 'driverName' in load_dict.keys():
-            _driver_name = load_dict['driverName']
-        else:
-            _driver_name = _driver_id
-
-        if 'deviceList' in load_dict.keys():
-            _deviceInfos = load_dict['deviceList']
-
-        if 'driverInfo' in load_dict.keys():
-            _driverInfo = load_dict['driverInfo']
     except Exception as e:
         print('load config file error:{}'.format(e))
         sys.exit(1)
 
-print("driver_id: {}, driver name:{}".format(_driver_id, _driver_name))
+print("application name:{}".format(_app_name))
 
 
 class _Logger(object):
@@ -135,12 +128,12 @@ class _Logger(object):
         self.logger.setLevel(level)
 
 
-_uiotedge_logger = _Logger(_driver_name)
+_iotedge_logger = _Logger("app_"+_app_name)
 
 
 def _init_logger():
-    global _uiotedge_logger
-    _uiotedge_logger.start()
+    global _iotedge_logger
+    _iotedge_logger.start()
     logging.debug('init logger success')
 
 
@@ -150,5 +143,5 @@ _t_logger.start()
 
 
 def getLogger():
-    global _uiotedge_logger
-    return _uiotedge_logger
+    global _iotedge_logger
+    return _iotedge_logger

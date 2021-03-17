@@ -2,9 +2,8 @@ import json
 import logging
 import time
 
-from iotedgedriverlinksdk import getLogger
-from iotedgedriverlinksdk.client import Config, SubDevice
-from iotedgedriverlinksdk.exception import BaseEdgeException
+from iotedgeapplicationlinksdk import getLogger
+from iotedgeapplicationlinksdk.client import get_application_config, get_application_name, get_gateway_product_sn, get_gateway_device_sn, publish, register_callback
 
 # 配置log
 log = getLogger()
@@ -14,75 +13,48 @@ log.setLevel(logging.DEBUG)
 if __name__ == "__main__":
     try:
         # 获取驱动及子设备配置信息
-        driverConfig = Config().getDriverInfo()
-        log.info('driver config:{}'.format(driverConfig))
+        appConfig = get_application_config()
+        log.info('app config:{}'.format(appConfig))
 
         # 从驱动配置获取设备数据上报周期
         uploadPeriod = 5
-        if "period" in driverConfig.keys() and isinstance(driverConfig['period'], int):
-            uploadPeriod = int(driverConfig['period'])
+        if "period" in appConfig.keys() and isinstance(appConfig['period'], int):
+            uploadPeriod = int(appConfig['period'])
 
-        deviceInfoList = Config().getDeviceInfos()
-        log.info('device list config:{}'.format(deviceInfoList))
-    except Exception as e:
-        log.error('load driver config error: {}'.format(str(e)))
-        exit(1)
+        appName = get_application_name()
+        productSN = get_gateway_product_sn()
+        deviceSN = get_gateway_device_sn()
+        log.info('app info:{}, {}, {}'.format(appName, productSN, deviceSN))
 
-    try:
         # 判断是否绑定子设备
-        if len(deviceInfoList) < 1:
-            log.error(
-                'subdevice null, please bind sub device for driver')
-            while True:
-                time.sleep(60)
+        topic = '/{}/{}/upload'.format(productSN, deviceSN)
 
-        # 取其中一个子设备
-        subDeviceInfo = deviceInfoList[0]
-
-        # 获取子设备的ProductSN ，key值为 ‘productSN’
-        productSN = subDeviceInfo['productSN']
-        # 获取子设备的DeviceSN ，key值为 ‘deviceSN’
-        deviceSN = subDeviceInfo['deviceSN']
-
-        def callback(topic: str, payload: b''):
+        def callback(topic: str, payload: bytes):
             log.info("recv message from {} : {}".format(topic, str(payload)))
 
-        # 初始化一个子设备对象
-        subDevice = SubDevice(product_sn=productSN,
-                              device_sn=deviceSN, on_msg_callback=callback)
-        # 子设备上线
-        subDevice.login()
+        def rrpc_callback(topic: str, payload: bytes):
+            log.info("recv rrpc message from {} : {}".format(
+                topic, str(payload)))
 
-        # 获取当前子设备的配置
-        deviceConfig = subDeviceInfo['config']
-        log.info('sub device config:{}'.format(deviceConfig))
-
-        # 从子设备配置获取子设备上报topic定义
-        topic = "/{}/{}/upload".format(productSN, deviceSN)  # 此处为默认topic
-        if 'topic' in deviceConfig and isinstance(deviceConfig['topic'], str):
-            topic = deviceConfig['topic'].format(productSN, deviceSN)
-
-        # 从子设备配置获取子设备上报参数名称
-        param = 'RelayStatus'  # 此处定义默认属性名称： RelayStatus
-        if 'paramName' in deviceConfig and isinstance(deviceConfig['paramName'], str):
-            param = deviceConfig['paramName']
+        register_callback(callback, rrpc_callback)
 
         i = 0
         while True:
             relayStatus = ("on", "off")[i % 2 == 0]
             payload = {
                 "timestamp": time.time(),
-                param: relayStatus
+                'RelayStatus': relayStatus
             }
+
             byts = json.dumps(payload).encode('utf-8')
 
-            subDevice.publish(topic, byts)
+            publish(topic, byts)
+
             log.info("upload {} : {}".format(topic, str(byts)))
 
             time.sleep(uploadPeriod)
             i = i+1
 
-    except BaseEdgeException:
-        log.error('Edge Exception: {}'.format(str(e)))
     except Exception as e:
-        log.error('Exception error: {}'.format(str(e)))
+        log.error('load app config error: {}'.format(str(e)))
+        exit(1)
