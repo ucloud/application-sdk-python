@@ -80,8 +80,11 @@ class _natsClientSub(object):
                 data = base64.b64decode(js['payload'])
                 if isinstance(topic, str) and topic.startswith("/$system/") and topic.count('/rrpc/request/') > 0:
                     topic = topic.replace("/request/", "/response/", 1)
-                    _msg_rrpc_cb(topic, data)
-                else:
+                    if _msg_rrpc_cb:
+                        _msg_rrpc_cb(topic, data)
+                        return
+
+                if _msg_cb:
                     _msg_cb(topic, data)
             except Exception as e:
                 _logger.error('handle msg error {}'.format(str(e)))
