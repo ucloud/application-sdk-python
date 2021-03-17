@@ -75,7 +75,7 @@ class _natsClientSub(object):
             global _msg_cb
             _logger.debug("recv message:{} " .format(str(msg)))
             try:
-                js = json.loads(msg)
+                js = json.loads(msg.data.decode())
                 topic = js['topic']
                 data = base64.b64decode(js['payload'])
                 if isinstance(topic, str) and topic.startswith("/$system/") and topic.count('/rrpc/request/') > 0:
@@ -124,6 +124,7 @@ def publish(topic: str, msg: bytes):
     payload = {
         'src': "app",
         'topic': topic,
+        "identity": _app_name,
         'payload': str(payload_encode, encoding='utf-8')
     }
     data = {
