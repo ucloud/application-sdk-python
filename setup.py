@@ -7,7 +7,7 @@ if not (sys.version_info[0] == 3):
 
 setup(
     name='iotedge_application_link_sdk',
-    version='0.0.3',
+    version='0.1.0',
     author='ucloud.cn',
     url='https://pypi.org/project/iotedge_application_link_sdk/',
     author_email='joy.zhou@ucloud.cn',

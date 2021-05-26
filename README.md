@@ -1,63 +1,113 @@
-## API参考文档
+## API 参考文档
 
-主要的API参考文档如下：
+主要的 API 参考文档如下：
 
 #### from iotedgeapplicationlinksdk
-* **[getLogger()](#getLogger)**
+
+- **[getLogger()](#getLogger)**
 
 ---
 
 #### from iotedgeapplicationlinksdk.client
-* **[get_application_config()](#get_application_config)**
-* **[get_application_name()](#get_application_name)**
-* **[get_gateway_product_sn()](#get_gateway_product_sn)**
-* **[get_gateway_device_sn()](#get_gateway_device_sn)**
-* **[publish()](#publish)**
-* **[register_callback()](#register_callback)**
 
+- **[get_application_config()](#get_application_config)**
+- **[get_application_name()](#get_application_name)**
+- **[get_gateway_product_sn()](#get_gateway_product_sn)**
+- **[get_gateway_device_sn()](#get_gateway_device_sn)**
+- **[publish()](#publish)**
+- **[register_callback()](#register_callback)**
+- **[natsPublish()](#natsPublish)**
+- **[natsSubscribe()](#natsSubscribe)**
 
 ---
+
 <a name="getLogger"></a>
+
 ### getLogger()
-返回应用内置logger。
+
+返回应用内置 logger。
 
 ---
+
 <a name="get_application_config"></a>
+
 ### get_application_config()
+
 返回应用配置。
 
 ---
+
 <a name="get_application_name"></a>
+
 ### get_application_name()
+
 返回应用名称。
 
 ---
+
 <a name="get_gateway_product_sn"></a>
+
 ### get_gateway_product_sn()
-返回应用网关ProductSN。
+
+返回应用网关 ProductSN。
 
 ---
+
 <a name="get_gateway_device_sn"></a>
+
 ### get_gateway_device_sn()
-返回应用网关DeviceSN。
+
+返回应用网关 DeviceSN。
 
 ---
+
 <a name="publish"></a>
-### publish()
-上报消息到Link IoT Edge。参数(topic: str, payload: bytes)
 
-* topic`str`: 上报消息到Link IoT Edge的mqtt topic。
-* payload`bytes`: 上报消息到Link IoT Edge的消息内容
+### publish()
+
+上报消息到 Link IoT Edge。参数(topic: str, payload: bytes)
+
+- topic`str`: 上报消息到 Link IoT Edge 的 mqtt topic。
+- payload`bytes`: 上报消息到 Link IoT Edge 的消息内容
 
 ---
+
 <a name="register_callback"></a>
+
 ### register_callback
+
 设置应用接收消息的回调函数，参数(cb, rrpc_cb)
 
-* cb`func`: 应用消息回调，例如：` def callback(topic:str, msg:bytes): print(str(msg,'utf-8')`
-* rrpc_cb`func`: 应用RRPC消息回调，例如：` def callback(topic:str, msg:bytes): print(str(msg,'utf-8')`
+- cb`func`: 应用消息回调，例如：` def callback(topic:str, msg:bytes): print(str(msg,'utf-8')`
+- rrpc_cb`func`: 应用 RRPC 消息回调，例如：` def callback(topic:str, msg:bytes): print(str(msg,'utf-8')`
+
+---
+
+<a name="natsPublish"></a>
+
+### natsPublish(subject, payload)
+
+通过 nats Publish 消息
+
+- subject`str`: nats Subject
+- payload`bytes`: nats 消息
+
+---
+
+<a name="natsSubscribe"></a>
+
+### natsSubscribe(subject, queue, callback)
+
+通过 nats 订阅 主题
+
+- subject`str`: nats Subject
+- queue`str`: nats 队列
+- callback`func(msg)`: nats 消息回调， msg 为 nats 消息
+
+---
 
 ## Demo
+
 ```
 import json
 import logging
